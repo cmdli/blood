@@ -5,18 +5,22 @@ import json
 from sys import argv
 
 class Cell:
-    def __init__(self, maxHunger):
+    def __init__(self):
+        pass
+    def init(self, maxHunger, neighbors):
         self.food = 0
         self.maxHunger = maxHunger
         self.hunger = maxHunger
         self.store = 0
+        self.neighbors = neighbors
 
-    def give(self, neighbors):
+    def give(self):
+        neighbors = self.neighbors
         if self.hunger == 0:
             food_per = math.floor(self.food/len(neighbors))
             for n in self.neighbors:
                 n.recieve(food_per)
-                food = food - food_per
+                self.food -= food_per
 
     def eat(self):
         # Move recieved food into local food amount
@@ -41,15 +45,20 @@ class World:
     def __init__(self, width, height, genome):
         self.width = width
         self.height = height
-        self.grid = [[Cell(genome[x + y*height]) for x in range(width)] for y in range(height)]
+        self.grid = [[Cell() for x in range(width)] for y in range(height)]
+        grid = self.grid
+        for y in range(height):
+            for x in range(width):
+                neighbors = [grid[cy][cx] for cy in range(x-1,x+1) for cx in range(y-1,y+1) if not (cx == x and cy == y)]
+                grid[y][x].init(genome[x + y * width], neighbors)
         self.reset()
 
     def tick(self):
         grid = self.grid
+        grid[self.height/2][self.width/2].food = 100
         for y in range(self.height):
             for x in range(self.width):
-                neighbors = [grid[cy][cx] for cy in range(x-1,x+1) for cx in range(y-1,y+1) if not (cx == x and cy == y)]
-                grid[y][x].give(neighbors)
+                grid[y][x].give()
 
         for y in range(self.height):                
             for x in range(self.width):
@@ -67,11 +76,20 @@ class World:
                     return True
         return False
 
+    def hunger(self):
+        sum = 0
+        for y in range(self.height):
+            for x in range(self.width):
+                sum += self.grid[y][x].hunger
+        return sum
+
 def runRound(world):
+    print("Running round...")
     world.reset()
     i = 0
     while world.alive():
         world.tick()
+        print("Hunger: " + str(world.hunger()))
         i = i + 1
     return i
 
@@ -134,6 +152,7 @@ def main():
     elif len(argv) == 3:
         assert(argv[1] == "test")
         i = int(argv[2])
+        print("Testing " + str(i) + ".world...")
         width, height, genome = readWorldFile(str(i) + ".world")
         world = World(width, height, genome)
         print "Num rounds for " + str(i) + ".world: " + str(runRound(world))
